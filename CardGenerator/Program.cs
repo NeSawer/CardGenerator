@@ -96,17 +96,21 @@ static void ParseRaw()
 
     Console.WriteLine("Parsed: {0} heroes, {1} components, {2} tools, {3} tests.", heroes.Count, components.Count, tools.Count, tests.Count);
 
-    foreach (var hero in heroes.Select(h => (hero: h, card: GenerateCard(h, GetImagePath(h, usedImages)))))
-        hero.card.Save("heroes/" + hero.hero.Name + ".png");
+    foreach (var hero in heroes.Select(h => GenerateCards(h, GetImagePaths(h, usedImages))))
+        foreach (var card in hero)
+            card.image.Save("heroes/" + card.name + ".png");
 
-    foreach (var component in components.Select(c => (component: c, card: GenerateCard(c, GetImagePath(c, usedImages)))))
-        component.card.Save("components/" + component.component.Name + ".png");
+    foreach (var component in components.Select(c => GenerateCards(c, GetImagePaths(c, usedImages))))
+        foreach (var card in component)
+            card.image.Save("components/" + card.name + ".png");
 
-    foreach (var tool in tools.Select(t => (tool: t, card: GenerateCard(t, GetImagePath(t, usedImages)))))
-        tool.card.Save("tools/" + tool.tool.Name + ".png");
+    foreach (var tool in tools.Select(t => GenerateCards(t, GetImagePaths(t, usedImages))))
+        foreach (var card in tool)
+            card.image.Save("tools/" + card.name + ".png");
 
-    foreach (var test in tests.Select(t => (test: t, card: GenerateCard(t, GetImagePath(t, usedImages)))))
-        test.card.Save("tests/" + test.test.Name + ".png");
+    foreach (var test in tests.Select(t => GenerateCards(t, GetImagePaths(t, usedImages))))
+        foreach (var card in test)
+            card.image.Save("tests/" + card.name + ".png");
 
     Console.WriteLine("All generated.");
 
@@ -190,16 +194,25 @@ static Test ParseRawTest(string str)
     return card;
 }
 
-static string? GetImagePath(ICard card, List<string> usedImages)
+static IEnumerable<(string name, string? path)> GetImagePaths(ICard card, List<string> usedImages)
 {
     if (File.Exists("images/" + card.Name + ".png"))
     {
         usedImages.Add(card.Name);
-        return "images/" + card.Name + ".png";
+        yield return (card.Name, "images/" + card.Name + ".png");
+
+        var i = 2;
+        while (File.Exists("images/" + card.Name + ' ' + i + ".png"))
+        {
+            usedImages.Add(card.Name + ' ' + i);
+            yield return (card.Name + ' ' + i, "images/" + card.Name + ' ' + i + ".png");
+            i++;
+        }
+        yield break;
     }
 
-    Console.WriteLine("File '{0}' not found.", card.Name + ".png");
-    return null;
+    Console.WriteLine("Images for card '{0}' not found.", card.Name);
+    yield return (card.Name, null);
 }
 
 static void GeneratePatterns()
@@ -254,6 +267,11 @@ static void GeneratePatterns()
     bm.Save("patterns/combinedPattern.png");
     Thread.Sleep(100);
     Process.Start("explorer.exe", "patterns/combinedPattern.png");
+}
+
+static IEnumerable<(string name, Image image)> GenerateCards(ICard card, IEnumerable<(string name, string? path)> imagePaths, bool showStat = false)
+{
+    return imagePaths.Select(p => (p.name, GenerateCard(card, p.path, showStat)));
 }
 
 static Image GenerateCard(ICard card, string? imagePath, bool showStat = false)
