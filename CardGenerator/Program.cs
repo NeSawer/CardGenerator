@@ -11,6 +11,11 @@ ParseRaw();
 
 static void ParseRaw()
 {
+    var imgFiles = Directory.GetFiles("images");
+    foreach (var img in imgFiles)
+        if (img.ToLower() != img)
+            File.Move(img, img.ToLower());
+
     Directory.CreateDirectory("heroes");
     Directory.CreateDirectory("components");
     Directory.CreateDirectory("tools");
@@ -127,7 +132,7 @@ static Hero ParseRawHero(string str)
     var cd = str.Split("\t").Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
     var card = new Hero
     {
-        Name = cd[0],
+        Name = FormatName(cd[0]),
         Description = cd[1],
         Info = cd[2],
         BackColor = "#c49a47"
@@ -140,7 +145,7 @@ static Component ParseRawComponent(string str)
     var cd = str.Split("\t").Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
     var card = new Component
     {
-        Name = cd[0],
+        Name = FormatName(cd[0]),
         Description = cd[1],
         Cost = int.Parse(cd[2]),
         BackColor = "#c49a47"
@@ -153,7 +158,7 @@ static Tool ParseRawTool(string str)
     var cd = str.Split("\t").Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
     var card = new Tool
     {
-        Name = cd[0],
+        Name = FormatName(cd[0]),
         Description = cd[1],
         Cost = int.Parse(cd[2]),
         Crafts = new List<(string component, int count)>(),
@@ -163,7 +168,7 @@ static Tool ParseRawTool(string str)
     {
         if (item == "-")
             continue;
-        var component = char.IsDigit(item[^1]) ? item[..^3] : item;
+        var component = FormatName(char.IsDigit(item[^1]) ? item[..^3] : item);
         var count = char.IsDigit(item[^1]) ? int.Parse(item[^1].ToString()) : 1;
 
         card.Crafts.Add((component, count));
@@ -176,17 +181,17 @@ static Test ParseRawTest(string str)
     var cd = str.Split("\t").Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
     var card = new Test
     {
-        Name = cd[0],
+        Name = FormatName(cd[0]),
         Description = cd[1],
         Ways = new List<(string tool, int chance)>(),
         BackColor = "#c49a47"
     };
     for (var i = 1; i < cd.Length / 2; i++)
     {
-        var tool = cd[i * 2];
-        var chance = cd[i * 2 + 1];
+        var tool = FormatName(cd[i * 2]);
+        var chance = cd[i * 2 + 1].Trim('+');
 
-        if (chance.Length != 2 || !char.IsDigit(chance[0]) || chance[1] != '+')
+        if (chance.Length != 1 || !char.IsDigit(chance[0]))
             Console.WriteLine("Test '{0}' chance '{1}' invalid format.", cd[0], chance);
         else
             card.Ways.Add((tool, int.Parse(chance[0..1])));
@@ -194,18 +199,21 @@ static Test ParseRawTest(string str)
     return card;
 }
 
+static string FormatName(string name) => char.ToUpper(name[0]) + name[1..].ToLower();
+
 static IEnumerable<(string name, string? path)> GetImagePaths(ICard card, List<string> usedImages)
 {
-    if (File.Exists("images/" + card.Name + ".png"))
+    var name = card.Name.ToLower();
+    if (File.Exists("images/" + name + ".png"))
     {
-        usedImages.Add(card.Name);
-        yield return (card.Name, "images/" + card.Name + ".png");
+        usedImages.Add(name);
+        yield return (card.Name, "images/" + name + ".png");
 
         var i = 2;
-        while (File.Exists("images/" + card.Name + ' ' + i + ".png"))
+        while (File.Exists("images/" + name + ' ' + i + ".png"))
         {
-            usedImages.Add(card.Name + ' ' + i);
-            yield return (card.Name + ' ' + i, "images/" + card.Name + ' ' + i + ".png");
+            usedImages.Add(name + ' ' + i);
+            yield return (card.Name + ' ' + i, "images/" + name + ' ' + i + ".png");
             i++;
         }
         yield break;
